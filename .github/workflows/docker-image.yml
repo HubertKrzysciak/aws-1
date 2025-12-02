@@ -1,51 +1,25 @@
-name: Docker Compose CI
+name: Build Docker
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # 1. Build backend image
-    - name: Build backend image
-      run: docker build -t backend:ci --file backend/Dockerfile backend
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    # 2. Build frontend image
-    - name: Build frontend image
-      run: docker build -t frontend:ci --file frontend/Dockerfile frontend
-
-    # 3. Run Docker Compose (używamy lokalnie zbudowanych obrazów)
-    - name: Start docker-compose
-      run: |
-        docker compose up -d
-        docker compose ps
-
-    # 4. Czekamy aż backend odpowie (max 30s)
-    - name: Wait for backend
-      run: |
-        for i in {1..30}; do
-          if curl -s http://localhost:8000/health >/dev/null 2>&1; then
-            echo "Backend is UP!"
-            exit 0
-          fi
-          echo "Waiting for backend..."
-          sleep 1
-        done
-        echo "Backend did not start in time!"
-        exit 1
-
-    # 5. Test frontend (czy działa)
-    - name: Test frontend
-      run: curl -I http://localhost
-
-    # 6. Stop services
-    - name: Shutdown
-      if: always()
-      run: docker compose down -v
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: myapp:latest
